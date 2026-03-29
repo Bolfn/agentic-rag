@@ -57,7 +57,7 @@ The system is currently built around:
 Run the preprocessing and indexing pipeline:
 
 ```text
-/home/nandor/Coding/PWC/project/.venv/bin/python src/pipeline.py
+python src/pipeline.py
 ```
 
 This produces:
@@ -73,7 +73,7 @@ This produces:
 To inspect retrieved chunks only:
 
 ```text
-/home/nandor/Coding/PWC/project/.venv/bin/python src/retrieve.py "What is the holiday policy?"
+python src/retrieve.py "What is the holiday policy?"
 ```
 
 ## Run Chat
@@ -81,8 +81,8 @@ To inspect retrieved chunks only:
 To run the terminal-based agentic RAG chat:
 
 ```text
-cd /home/nandor/Coding/PWC/project/agentic-rag/src
-/home/nandor/Coding/PWC/project/.venv/bin/python chat.py
+cd src
+python chat.py
 ```
 
 Type `exit` or `quit` to stop.
@@ -92,7 +92,7 @@ Type `exit` or `quit` to stop.
 To run the fixed evaluation query set:
 
 ```text
-/home/nandor/Coding/PWC/project/.venv/bin/python src/evaluate.py
+python src/evaluate.py
 ```
 
 The evaluation queries are stored in:
