@@ -4,6 +4,8 @@
 
 This project supports employees with a local question-answering assistant over a policy manual PDF. Instead of manually reading a long handbook, a user can ask natural-language questions such as leave rules, payroll timing, procurement thresholds, or security policies, and receive grounded answers from the document.
 
+The main presentation artifact for the assignment is the notebook `agentic_rag_demo.ipynb`, which walks through the pipeline units, retrieval logic, and agentic control flow step by step.
+
 ## 2. System Architecture
 
 ![system diagram](system-diagram.svg)

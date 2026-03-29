@@ -46,6 +46,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Demo Notebook
+
+For the assignment presentation, the main walkthrough notebook is:
+
+- `agentic_rag_demo.ipynb`
+
+The notebook explains the pipeline units, retrieval strategy, LangGraph flow, follow-up handling, smalltalk routing, bottlenecks, and next steps.
+
 ## Input Document
 
 The system is currently built around:
