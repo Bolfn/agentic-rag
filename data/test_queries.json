@@ -1,0 +1,62 @@
+[
+  {
+    "id": "holiday_policy",
+    "category": "benefits",
+    "query": "What is the holiday policy?"
+  },
+  {
+    "id": "vacation_rules",
+    "category": "benefits",
+    "query": "What are the vacation rules?"
+  },
+  {
+    "id": "grievance_procedure",
+    "category": "personnel",
+    "query": "How does the grievance procedure work?"
+  },
+  {
+    "id": "harassment_policy",
+    "category": "personnel",
+    "query": "What does the harassment policy say?"
+  },
+  {
+    "id": "direct_deposit",
+    "category": "personnel",
+    "query": "How are employees paid and what is direct deposit?"
+  },
+  {
+    "id": "conflict_of_interest",
+    "category": "personnel",
+    "query": "What is the conflict of interest policy?"
+  },
+  {
+    "id": "travel_reimbursement",
+    "category": "personnel",
+    "query": "What travel expenses are reimbursed?"
+  },
+  {
+    "id": "family_medical_leave",
+    "category": "benefits",
+    "query": "What does the family and medical leave policy say?"
+  },
+  {
+    "id": "whistleblower_policy",
+    "category": "governance",
+    "query": "What is the whistleblower policy?"
+  },
+  {
+    "id": "procurement_methods",
+    "category": "procurement",
+    "query": "What are the procurement methods and thresholds?"
+  },
+  {
+    "id": "records_retention",
+    "category": "records",
+    "query": "What records retention rules are described?"
+  },
+  {
+    "id": "computer_security",
+    "category": "security",
+    "query": "What are the computer and internet security rules?"
+  }
+]

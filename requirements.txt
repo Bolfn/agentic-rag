@@ -1,0 +1,8 @@
+PyMuPDF>=1.24,<2
+tiktoken>=0.7,<1
+sentence-transformers>=3,<4
+chromadb>=0.5,<1
+transformers>=4.44,<5
+sentencepiece>=0.2,<1
+streamlit>=1.37,<2
+langgraph>=1.1,<2
