@@ -6,7 +6,7 @@ This project supports employees with a local question-answering assistant over a
 
 ## 2. System Architecture
 
-![system diagram](system.png)
+![system diagram](system-diagram.svg)
 
 The current implementation is an agentic RAG pipeline in `src/`:
 
