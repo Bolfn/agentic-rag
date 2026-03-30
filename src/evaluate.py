@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from rag.config import DATA_DIR
+from rag.graph import build_graph
 from rag.retrieve import (
     filter_results,
     format_results,
@@ -37,6 +38,16 @@ def main() -> None:
         action="store_true",
         help="Disable reranking and evaluate hybrid retrieval only.",
     )
+    parser.add_argument(
+        "--with-answers",
+        action="store_true",
+        help="Also run the full LangGraph flow and print generated answers.",
+    )
+    parser.add_argument(
+        "--show-trace",
+        action="store_true",
+        help="When used with --with-answers, print the agent trace as well.",
+    )
     args = parser.parse_args()
 
     query_path = Path(args.query_file)
@@ -44,9 +55,12 @@ def main() -> None:
 
     model = load_retrieval_model()
     reranker = None if args.no_rerank else load_reranker()
+    graph = build_graph() if args.with_answers else None
 
     print(f"Loaded {len(queries)} evaluation queries from {query_path}")
     print(f"Mode: {'hybrid-only' if args.no_rerank else 'hybrid+rerank'}")
+    if args.with_answers:
+        print("Answer generation: enabled")
     print()
 
     for item in queries:
@@ -86,10 +100,28 @@ def main() -> None:
                 score_parts.append(f"rerank={result['rerank_score']:.4f}")
 
             print(
-                f"{index}. page={metadata['page_number']} chunk={metadata['page_chunk_index']} "
+                f"{index}. document={metadata.get('document_name', 'unknown')} "
+                f"page={metadata['page_number']} chunk={metadata['page_chunk_index']} "
                 f"{' '.join(score_parts)}"
             )
             print(text_preview)
+
+        if graph is not None:
+            answer_result = graph.invoke(
+                {
+                    "question": item["query"],
+                    "chat_history": [],
+                }
+            )
+            print("\nGenerated answer:")
+            print(answer_result.get("answer", "No answer generated."))
+
+            if args.show_trace:
+                trace = answer_result.get("agent_trace", [])
+                if trace:
+                    print("\nAgent trace:")
+                    for step in trace:
+                        print(f"- {step}")
 
         print()
 

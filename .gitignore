@@ -17,7 +17,6 @@ Thumbs.db
 
 data/extracted_pages.json
 data/cleaned_pages.json
-data/sections.json
 data/chunked_documents.json
 data/embedded_chunks.json
 data/chroma_db/

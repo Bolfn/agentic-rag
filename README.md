@@ -1,6 +1,14 @@
-# Policy Manual Agentic RAG
+# Agentic RAG
 
-This project builds a fully local RAG assistant over a policy manual PDF. The current implementation lives in `src/` and uses a LangGraph-based agent flow with local retrieval, reranking, and answer generation.
+This project builds a fully local agentic RAG assistant for question answering over one or more PDF documents. The current implementation lives in `src/` and uses a LangGraph-based control flow with hybrid retrieval, reranking, local generation, and verification.
+
+The system is designed as a general PDF RAG pipeline:
+
+- put PDF files into `imports/`
+- run the indexing pipeline
+- ask questions over the indexed document set
+
+For demonstration, the repository currently uses a sample policy manual PDF as the example corpus, and the included evaluation query set is written for that example corpus.
 
 ## Project Origin
 
@@ -8,7 +16,7 @@ This repository builds on an earlier version of my policy-manual RAG project:
 
 - `https://github.com/Bolfn/policy-manual-rag.git`
 
-The earlier repository served as the starting point, while this repository contains the current agentic RAG implementation with LangGraph orchestration, hybrid retrieval, reranking, follow-up handling, and local Qwen generation.
+The earlier repository served as the starting point. This repository contains the generalized agentic rewrite with LangGraph orchestration, multi-PDF ingestion, hybrid retrieval, reranking, follow-up handling, and local Qwen generation.
 
 ## Current Stack
 
@@ -17,18 +25,19 @@ The earlier repository served as the starting point, while this repository conta
 - Chunking: heading/list-aware recursive chunking
 - Embeddings: `intfloat/e5-base-v2`
 - Vector database: `Chroma`
-- Lexical retrieval: local `BM25`
+- Lexical retrieval: local BM25
 - Reranker: `cross-encoder/ms-marco-MiniLM-L-6-v2`
 - Generation model: `Qwen/Qwen2.5-3B-Instruct`
 - Agent orchestration: `LangGraph`
 
 ## Project Structure
 
+- `imports/`: PDF files to ingest
 - `src/pipeline.py`: end-to-end preprocessing and indexing pipeline
 - `src/retrieve.py`: retrieval CLI
 - `src/chat.py`: terminal chat interface
 - `src/evaluate.py`: fixed query evaluation runner
-- `src/rag/loaders.py`: PDF loading
+- `src/rag/loaders.py`: multi-PDF loading
 - `src/rag/clean.py`: page cleaning and noise filtering
 - `src/rag/chunking.py`: heading/list-aware chunking
 - `src/rag/embed.py`: embedding generation
@@ -52,15 +61,23 @@ For the assignment presentation, the main walkthrough notebook is:
 
 - `agentic_rag_demo.ipynb`
 
-The notebook explains the pipeline units, retrieval strategy, LangGraph flow, follow-up handling, smalltalk routing, bottlenecks, and next steps.
+The notebook explains the pipeline units, retrieval strategy, LangGraph flow, follow-up handling, smalltalk routing, bottlenecks, and next steps. It presents the current example corpus based on the sample policy manual in `imports/`.
 
-## Input Document
+## Input Documents
 
-The system is currently built around:
+The pipeline indexes every PDF found under:
 
-- `sample_policy_and_procedures_manual.pdf`
+- `imports/`
 
-## Build The Agentic Index
+You can replace the example PDF with your own documents, or add multiple PDFs. The pipeline will ingest all of them into a shared local index.
+
+Optional override:
+
+```text
+RAG_IMPORT_DIR=/path/to/pdf-folder python src/pipeline.py
+```
+
+## Build The Index
 
 Run the preprocessing and indexing pipeline:
 
@@ -81,7 +98,7 @@ This produces:
 To inspect retrieved chunks only:
 
 ```text
-python src/retrieve.py "What is the holiday policy?"
+python src/retrieve.py "What does the document say about direct deposit?"
 ```
 
 ## Run Chat
@@ -103,25 +120,34 @@ To run the fixed evaluation query set:
 python src/evaluate.py
 ```
 
-The evaluation queries are stored in:
+The current evaluation queries are stored in:
 
 - `data/test_queries.json`
+
+Important:
+
+- the evaluation file is corpus-specific
+- the included query set is meant for the current example policy manual corpus
+- if you change the indexed PDFs, you should also update `data/test_queries.json`
+- the current runner is mainly a retrieval-focused sanity check, not a full automatic answer benchmark
 
 ## Agent Flow
 
 The current LangGraph workflow does the following:
 
-1. classify the user question
+1. classify the input as question or smalltalk
 2. detect follow-up questions
-3. rewrite follow-up queries when needed
+3. rewrite contextual follow-up queries when needed
 4. run hybrid retrieval
 5. rerank candidate chunks
-6. generate a grounded answer with the local Qwen model
-7. verify the answer and fall back to extractive output when generation is weak
-8. short-circuit smalltalk/acknowledgement inputs without retrieval
+6. broaden retrieval when the first pass looks weak
+7. generate a grounded answer with the local Qwen model
+8. verify the answer and fall back to extractive output when generation is weak
+9. short-circuit acknowledgements without retrieval
 
 ## Notes
 
 - The current implementation is the code under `src/`.
 - Document chunk embeddings are generated once during indexing; only query embeddings are computed at retrieval time.
 - GPU access is required for acceptable local Qwen response times. If `nvidia-smi` or `torch.cuda.is_available()` fails, generation may fall back to CPU and become very slow.
+- The system is intended as a general local PDF RAG pipeline, while the sample policy manual is only the current demonstration corpus.
