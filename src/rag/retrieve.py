@@ -162,6 +162,9 @@ def retrieve_bm25_candidates(
                 "chunk_id": document["chunk_id"],
                 "text": document["text"],
                 "metadata": {
+                    "document_id": document["document_id"],
+                    "document_name": document["document_name"],
+                    "document_path": document["document_path"],
                     "page_number": document["page_number"],
                     "page_chunk_index": document["page_chunk_index"],
                     "token_count": document["token_count"],

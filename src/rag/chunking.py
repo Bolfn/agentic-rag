@@ -294,14 +294,20 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
 
             if chunk["token_count"] < MIN_CHUNK_TOKENS and chunked_documents:
                 previous = chunked_documents[-1]
-                if previous["page_number"] == page["page_number"]:
+                if (
+                    previous["document_id"] == page["document_id"]
+                    and previous["page_number"] == page["page_number"]
+                ):
                     previous["text"] = f"{previous['text']}\n\n{chunk['text']}".strip()
                     previous["token_count"] = token_count(previous["text"], encoding)
                     continue
 
             chunked_documents.append(
                 {
-                    "chunk_id": f"chunk-{len(chunked_documents) + 1}",
+                    "chunk_id": f"{page['document_id']}-p{page['page_number']}-c{chunk['page_chunk_index']}",
+                    "document_id": page["document_id"],
+                    "document_name": page["document_name"],
+                    "document_path": page["document_path"],
                     "page_number": page["page_number"],
                     "page_chunk_index": chunk["page_chunk_index"],
                     "token_count": chunk["token_count"],

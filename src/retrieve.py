@@ -35,6 +35,7 @@ def main() -> None:
             print(f"rerank_score={item['rerank_score']:.4f}")
         if item.get("sources"):
             print(f"sources={','.join(item['sources'])}")
+        print(f"document={metadata['document_name']}")
         print(f"page={metadata['page_number']} chunk={metadata['page_chunk_index']}")
         print(item["text"])
         print()

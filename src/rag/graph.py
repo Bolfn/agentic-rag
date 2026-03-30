@@ -5,7 +5,7 @@ from langgraph.graph import END, START, StateGraph
 
 import re
 
-from .llm import HOLIDAY_MARKERS, extractive_fallback, generate_answer
+from .llm import extractive_fallback, generate_answer
 from .retrieve import (
     filter_results,
     format_results,
@@ -19,7 +19,6 @@ class AgentState(TypedDict, total=False):
     question: str
     interaction_intent: str
     retrieval_query: str
-    question_type: str
     is_follow_up: bool
     needs_broad_search: bool
     retrieve_top_k: int
@@ -34,12 +33,22 @@ class AgentState(TypedDict, total=False):
 def classify_question(state: AgentState) -> AgentState:
     question_text = state["question"].strip()
     question = question_text.lower()
+    question_words = question_text.split()
     history = state.get("chat_history", [])
-    broad_terms = ["policy", "rules", "describe", "what does", "what are", "how does"]
-    procurement_terms = ["procurement", "threshold", "contract", "bid", "solicitation"]
-    records_terms = ["record", "retention", "records management"]
-    leave_terms = ["leave", "fmla", "family medical", "vacation", "holiday"]
     follow_up_markers = ["and ", "what about", "how about", "that", "those", "them", "it", "also"]
+    broad_question_starters = (
+        "what is",
+        "what are",
+        "what does",
+        "how does",
+        "how do",
+        "why does",
+        "why do",
+        "describe",
+        "explain",
+        "summarize",
+        "tell me",
+    )
     smalltalk_phrases = {
         "ok",
         "okay",
@@ -62,30 +71,21 @@ def classify_question(state: AgentState) -> AgentState:
     ):
         interaction_intent = "smalltalk"
 
-    question_type = "general"
-    if interaction_intent == "question" and any(term in question for term in procurement_terms):
-        question_type = "procurement"
-    elif interaction_intent == "question" and any(term in question for term in records_terms):
-        question_type = "records"
-    elif interaction_intent == "question" and any(term in question for term in leave_terms):
-        question_type = "benefits"
-
-    needs_broad_search = interaction_intent == "question" and (
-        any(term in question for term in broad_terms) or question_type in {
-        "procurement",
-        "records",
-    })
+    is_broad_question = (
+        question.startswith(broad_question_starters)
+        or len(question_words) >= 9
+    )
+    needs_broad_search = interaction_intent == "question" and is_broad_question
     is_follow_up = interaction_intent == "question" and bool(history) and (
         len(question.split()) <= 8 or any(marker in question for marker in follow_up_markers)
     )
 
     trace = state.get("agent_trace", []) + [
-        f"classify_question: intent={interaction_intent}, type={question_type}, broad_search={needs_broad_search}, follow_up={is_follow_up}"
+        f"classify_question: intent={interaction_intent}, broad_search={needs_broad_search}, follow_up={is_follow_up}"
     ]
 
     return {
         "interaction_intent": interaction_intent,
-        "question_type": question_type,
         "is_follow_up": is_follow_up,
         "needs_broad_search": needs_broad_search,
         "retrieve_top_k": 4,
@@ -172,10 +172,6 @@ def assess_retrieval(state: AgentState) -> AgentState:
         should_retry = True
     elif broad_search and len(retrieved) < 2:
         should_retry = True
-    elif retrieved and state.get("question_type") in {"records", "procurement"}:
-        first_text = retrieved[0]["text"].lower()
-        if "policy" not in first_text and "records" not in first_text and "procurement" not in first_text:
-            should_retry = True
 
     trace = state.get("agent_trace", []) + [f"assess_retrieval: retry={should_retry}"]
     return {"agent_trace": trace, "needs_broad_search": should_retry}
@@ -233,23 +229,20 @@ def verify_answer_node(state: AgentState) -> AgentState:
     query_terms = {
         token
         for token in re.findall(r"\b[a-zA-Z]{4,}\b", question)
-        if token not in {"what", "does", "policy", "rules", "work", "described", "say"}
+        if token not in {"what", "does", "rules", "work", "described", "say"}
     }
     answer_lower = answer.lower()
     has_query_overlap = any(term in answer_lower for term in query_terms)
     too_short = len(answer.split()) < 8
-    says_not_found = "does not contain information" in answer_lower or "not found in the retrieved context" in answer_lower
-    holiday_question = "holiday" in question
-    has_holiday_names = any(marker in answer_lower for marker in HOLIDAY_MARKERS)
-    generic_list_answer = holiday_question and not has_holiday_names
-    placeholder_heavy = answer_lower.count(" hours") > 0 or answer_lower.count(" days") > 1
+    says_not_found = (
+        "does not contain information" in answer_lower
+        or "not found in the retrieved context" in answer_lower
+    )
 
     if (
         too_short
         or says_not_found
         or (query_terms and not has_query_overlap)
-        or generic_list_answer
-        or (holiday_question and placeholder_heavy and not has_holiday_names)
     ):
         fallback_answer = extractive_fallback(state["question"], retrieved)
         trace = state.get("agent_trace", []) + [

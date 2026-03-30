@@ -10,7 +10,7 @@ from rag.config import (
     CLEANED_PATH,
     EMBEDDED_PATH,
     EXTRACTED_PATH,
-    SOURCE_DOCUMENT,
+    SOURCE_DOCUMENTS_DIR,
     ensure_data_dirs,
 )
 from rag.embed import run_embed
@@ -25,7 +25,7 @@ def write_json(path, payload) -> None:
 def main() -> None:
     ensure_data_dirs()
 
-    extracted_pages = run_extract(SOURCE_DOCUMENT)
+    extracted_pages = run_extract(SOURCE_DOCUMENTS_DIR)
     write_json(EXTRACTED_PATH, extracted_pages)
 
     cleaned_pages = run_clean(extracted_pages)
@@ -46,6 +46,7 @@ def main() -> None:
     print(f"Embedded chunks: {len(embedded_chunks)}")
     print(f"Artifacts written to: {EXTRACTED_PATH.parent}")
     print(f"Chroma index written to: {CHROMA_DIR}")
+    print(f"Imported PDFs from: {SOURCE_DOCUMENTS_DIR}")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,9 @@ def print_sources(retrieved_chunks: list[dict]) -> None:
     print("\nSources:")
     for index, chunk in enumerate(retrieved_chunks, start=1):
         metadata = chunk["metadata"]
-        print(f"{index}. page={metadata['page_number']} chunk={metadata['page_chunk_index']}")
+        print(
+            f"{index}. document={metadata['document_name']} page={metadata['page_number']} chunk={metadata['page_chunk_index']}"
+        )
 
 
 def main() -> None:

@@ -2,11 +2,10 @@ import re
 
 
 PAGE_MARKER_PATTERN = re.compile(r"Page\s+\d+\s+of\s+\d+", re.IGNORECASE)
-MANUAL_TITLE_PATTERN = re.compile(
-    r"Sample\s+Policies\s+and\s+Procedures\s+Manual(?:\s+v\.?\s*\d+(?:\.\d+)?)?",
+VERSION_LINE_PATTERN = re.compile(
+    r"^[A-Z][A-Z\s/&-]{3,}\s+v\.?\s*\d+(?:\.\d+)?$",
     re.IGNORECASE,
 )
-VERSION_PATTERN = re.compile(r"MANUAL\s+v\.?\s*\d+(?:\.\d+)?", re.IGNORECASE)
 DOT_LEADER_PATTERN = re.compile(r"\.{4,}")
 MULTISPACE_PATTERN = re.compile(r"[ \t]{2,}")
 MULTIBLANK_PATTERN = re.compile(r"\n{3,}")
@@ -55,9 +54,7 @@ def is_noise_line(line: str) -> bool:
         return True
     if PAGE_MARKER_PATTERN.fullmatch(line):
         return True
-    if MANUAL_TITLE_PATTERN.fullmatch(line):
-        return True
-    if VERSION_PATTERN.fullmatch(line):
+    if VERSION_LINE_PATTERN.fullmatch(line):
         return True
     if re.fullmatch(r"\d+\s+of\s+\d+", line, flags=re.IGNORECASE):
         return True
@@ -117,28 +114,22 @@ def is_toc_page(text: str) -> bool:
 
 
 def is_table_like_page(text: str) -> bool:
-    lowered = text.lower()
-    if "business record retention schedule" in lowered:
-        return True
-
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if len(lines) < 8:
         return False
 
     short_lines = sum(1 for line in lines if len(line) <= 24)
-    numeric_or_code_lines = sum(
+    code_like_lines = sum(
         1
         for line in lines
-        if re.fullmatch(r"(?:\d+|p|term|corporate|personnel|taxation|accounting and fiscal)", line.lower())
+        if re.fullmatch(r"\d+", line)
+        or re.fullmatch(r"[A-Z]{1,4}", line)
+        or (line.upper() == line and len(line) <= 24)
     )
-    return short_lines >= 12 and numeric_or_code_lines >= 4
+    return short_lines >= 12 and code_like_lines >= 4
 
 
 def should_drop_page(page_number: int, text: str) -> bool:
-    lowered = text.lower()
-
-    if page_number == 1 and "sample cdc" in lowered:
-        return True
     if is_toc_page(text):
         return True
     if is_table_like_page(text):
@@ -169,8 +160,7 @@ def clean_page_text(text: str) -> str:
 
     cleaned_text = rebuild_paragraphs(cleaned_lines)
     cleaned_text = PAGE_MARKER_PATTERN.sub(" ", cleaned_text)
-    cleaned_text = MANUAL_TITLE_PATTERN.sub(" ", cleaned_text)
-    cleaned_text = VERSION_PATTERN.sub(" ", cleaned_text)
+    cleaned_text = VERSION_LINE_PATTERN.sub(" ", cleaned_text)
     cleaned_text = MULTIBLANK_PATTERN.sub("\n\n", cleaned_text)
     return cleaned_text.strip()
 
@@ -187,6 +177,9 @@ def clean_pages(pages: list[dict]) -> list[dict]:
 
         cleaned_records.append(
             {
+                "document_id": page["document_id"],
+                "document_name": page["document_name"],
+                "document_path": page["document_path"],
                 "page_number": page["page_number"],
                 "text": cleaned_text,
             }

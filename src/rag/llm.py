@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import warnings
 from contextlib import redirect_stderr, redirect_stdout
 from functools import lru_cache
@@ -17,18 +18,6 @@ os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 MAX_INPUT_TOKENS = 2048
 MAX_NEW_TOKENS = 256
-HOLIDAY_MARKERS = [
-    "new year",
-    "martin luther king",
-    "president",
-    "memorial",
-    "independence",
-    "labor day",
-    "columbus",
-    "veteran",
-    "thanksgiving",
-    "christmas",
-]
 
 transformers_logging.set_verbosity_error()
 warnings.filterwarnings(
@@ -83,6 +72,7 @@ def build_prompt(question: str, retrieved_chunks: list[dict]) -> str:
 
     for index, chunk in enumerate(retrieved_chunks, start=1):
         metadata = chunk.get("metadata", {})
+        document_name = metadata.get("document_name", chunk.get("document_name", "unknown"))
         page_number = metadata.get("page_number", chunk.get("page_number", "unknown"))
         chunk_index = metadata.get(
             "page_chunk_index",
@@ -92,6 +82,7 @@ def build_prompt(question: str, retrieved_chunks: list[dict]) -> str:
             "\n".join(
                 [
                     f"Context {index}",
+                    f"Document: {document_name}",
                     f"Page: {page_number}",
                     f"Chunk: {chunk_index}",
                     chunk.get("text", ""),
@@ -105,7 +96,7 @@ def build_prompt(question: str, retrieved_chunks: list[dict]) -> str:
         [
             "Answer the user's question using only the provided context.",
             "If the answer is not clearly supported by the context, say that the answer was not found in the retrieved context.",
-            "Prefer concise factual answers. When the context contains policy conditions or lists, include those details.",
+            "Prefer concise factual answers. When the context contains conditions or lists, include those details.",
             context,
             f"Question: {question}",
             "Answer:",
@@ -134,33 +125,82 @@ def _is_heading_like(line: str) -> bool:
     return all(word[:1].isupper() for word in alpha_words if word[:1].isalpha())
 
 
-def _extract_relevant_passage(question: str, text: str) -> str:
-    question_lower = question.lower()
-    text = text.strip()
+def _query_terms(question: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"\b[a-zA-Z]{4,}\b", question.lower())
+        if token
+        not in {
+            "what",
+            "when",
+            "where",
+            "which",
+            "does",
+            "that",
+            "with",
+            "from",
+            "this",
+            "there",
+            "have",
+            "will",
+            "would",
+            "should",
+            "could",
+            "about",
+            "rules",
+            "describe",
+        }
+    }
 
-    if "holiday" in question_lower:
-        start_index = text.lower().find("holidays")
-        if start_index != -1:
-            candidate = text[start_index:]
+
+def _split_into_sections(text: str) -> list[str]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    sections: list[list[str]] = []
+    current: list[str] = []
+
+    for line in lines:
+        if _is_heading_like(line) and current:
+            sections.append(current)
+            current = [line]
         else:
-            candidate = text
+            current.append(line)
 
-        for marker in ["Leave of Absence", "Personal Sick Leave", "Bereavement", "Vacation Days"]:
-            marker_index = candidate.find(marker)
-            if marker_index > 0:
-                candidate = candidate[:marker_index].strip()
-                break
+    if current:
+        sections.append(current)
 
-        lines = [line.strip() for line in candidate.splitlines() if line.strip()]
-        kept: list[str] = []
-        for index, line in enumerate(lines):
-            if index > 0 and _is_heading_like(line):
-                break
-            kept.append(line)
-        clipped = "\n".join(kept).strip()
-        return clipped or candidate[:900]
+    return ["\n".join(section).strip() for section in sections if section]
 
-    return text[:900]
+
+def _score_section(section: str, query_terms: set[str]) -> tuple[int, int, int]:
+    section_lower = section.lower()
+    overlap = sum(1 for term in query_terms if term in section_lower)
+    heading_bonus = 0
+    first_line = section.splitlines()[0].strip() if section.splitlines() else ""
+    if first_line and _is_heading_like(first_line):
+        heading_bonus = 1
+    length_penalty = abs(len(section) - 500)
+    return overlap, heading_bonus, -length_penalty
+
+
+def _extract_relevant_passage(question: str, text: str) -> str:
+    text = text.strip()
+    if not text:
+        return ""
+
+    sections = _split_into_sections(text)
+    if not sections:
+        return text[:900]
+
+    query_terms = _query_terms(question)
+    if not query_terms:
+        candidate = sections[0]
+    else:
+        candidate = max(sections, key=lambda section: _score_section(section, query_terms))
+
+    return candidate[:900]
 
 
 def extractive_fallback(question: str, retrieved_chunks: list[dict]) -> str:

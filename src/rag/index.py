@@ -18,6 +18,9 @@ def build_collection(chunks: list[dict]):
         embeddings=[chunk["embedding"] for chunk in chunks],
         metadatas=[
             {
+                "document_id": chunk["document_id"],
+                "document_name": chunk["document_name"],
+                "document_path": chunk["document_path"],
                 "page_number": chunk["page_number"],
                 "page_chunk_index": chunk["page_chunk_index"],
                 "token_count": chunk["token_count"],
